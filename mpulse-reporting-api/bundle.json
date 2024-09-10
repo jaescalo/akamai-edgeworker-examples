@@ -1,0 +1,9 @@
+{
+    "edgeworker-version": "EWVERSION",
+    "bundle-version" : 6,
+    "api-version" : "1.0",
+    "description" : "DESCRIPTION",
+    "misc" : {
+        "author" : "Jaime Escalona"
+     }
+}
