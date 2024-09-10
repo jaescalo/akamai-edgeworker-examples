@@ -59,7 +59,7 @@ d7e351f3eec4aef4a9b586e58ef3e72543e7fc23986d9b7bc5ef1f6f3369b008,/DOC99003,/us-e
 ```
 
 ### Import to EKV
-The data can now be uploaded to EKV. See the [Akamai EdgeKV Python Importer](https://github.com/jaescalo/akamai-edgekv-importer/tree/main). 
+The data can now be uploaded to EKV. See the [Akamai EdgeKV Python Importer](https://github.com/jaescalo/akamai-edgeworker-examples/tree/main/ekv-importer). 
 With this tool the data will be imported to EKV as a JSON string. For example:
 ```
 {"key": "a30dfbbdcf4756f616c58e08bcfd381e81b86ea78f6cc743db3c4d8fdc2de537", "source": "/DOC99000", "target": "/us-en/NEW-URL-DOC99000"}
