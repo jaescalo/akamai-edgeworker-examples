@@ -17,6 +17,11 @@ This mode leverages an EdgeWorker to perform the writes/deletes to EdgeKV. The m
 
 * Keep in mind that the `edgekv.js` [helper library](https://techdocs.akamai.com/edgekv/docs/library-helper-methods) and the `edgekv_tokens.js` [access tokens](https://techdocs.akamai.com/edgekv/docs/generate-and-retrieve-edgekv-access-tokens) are required for the EdgeWorker to successfully write/delete to EdgeKV. 
 
+* Other security rate controls (e.g. Akamai WAF) may come into play based on the configured thresholds. For such cases:
+  * Lower the request rate by setting a smaller number of parallel executors in the `mode_max_workers` variable.
+  * Temporarily add exceptions to the security controls.
+  * Send the EKV data in batches based on the [HTTP sub-request limits per tier](https://techdocs.akamai.com/edgeworkers/docs/resource-tier-limitations). For isntance, the EW is limited to 4 http subrequests this means you need one fourth of the amount of request to upload all the data.
+
 #### EdgeWorker Setup
 Follow the instructions to:
 1. [Create a new EdgeWorker ID](https://techdocs.akamai.com/edgeworkers/docs/create-an-edgeworker-id-1)
@@ -102,3 +107,8 @@ To delete all entries using the API mode in CSV and use the `key` column as the 
 ```
 $ python3 edgekv_importer.py --mode api --filename example_input.csv -k code --delete
 ```
+
+## Future Improvements
+1. Add logging for the API mode
+2. Add namespace_id, group_id, network and mode_max_workers as options in the CLI instead. 
+3. 
