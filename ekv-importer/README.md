@@ -68,7 +68,6 @@ In this particular example the first column is named `key`. And we will use this
 Execution output is logged to `edgekv_importer.log` which can be used to identify any entries that errored or any missing entries. 
 
 ## Usage
-
 ```
 Usage: edgekv_importer.py [OPTIONS]
 
@@ -111,4 +110,3 @@ $ python3 edgekv_importer.py --mode api --filename example_input.csv -k code --d
 ## Future Improvements
 1. Add logging for the API mode
 2. Add namespace_id, group_id, network and mode_max_workers as options in the CLI instead. 
-3. 
