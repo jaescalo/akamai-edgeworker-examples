@@ -7,7 +7,7 @@ The script also allow for EdgeKV delete operations.
 There are 2 modes of operation for writing/deleting to EdgeKV: `edgeworker` or `api`.
 
 ### EdgeWorker Mode
-This mode leverages an EdgeWorker to perform the writes/deletes to EdgeKV. The main reason is because EdgeKV allows for more writes/deletes per second than the administrative API. See the [rate limits at techdocs.akamai.com](https://techdocs.akamai.com/edgekv/docs/limits)
+This mode leverages an EdgeWorker to perform the writes/deletes to EdgeKV. This mode allows for more writes/deletes per second than the administrative [API mode](#api-mode). See the [rate limits at techdocs.akamai.com](https://techdocs.akamai.com/edgekv/docs/limits)
 
 * An EdgeWorker is required for this mode and you can check the code in charge of writing/deleting EdgeKV items in `./edgeworker/main.js`. 
 
@@ -20,7 +20,9 @@ This mode leverages an EdgeWorker to perform the writes/deletes to EdgeKV. The m
 * Other security rate controls (e.g. Akamai WAF) may come into play based on the configured thresholds. For such cases:
   * Lower the request rate by setting a smaller number of parallel executors in the `mode_max_workers` variable.
   * Temporarily add exceptions to the security controls.
-  * Send the EKV data in batches based on the [HTTP sub-request limits per tier](https://techdocs.akamai.com/edgeworkers/docs/resource-tier-limitations). For isntance, the EW is limited to 4 http subrequests this means you need one fourth of the amount of request to upload all the data.
+  * Send the EKV data in batches based on the [HTTP sub-request limits per tier](https://techdocs.akamai.com/edgeworkers/docs/resource-tier-limitations). For instance, the EW is limited to 4 http subrequests this means you need one fourth of the amount of request to upload all the data.
+  * To further decrease the amount of requests consider [Bucketing](#bucketing) the items. 
+  * To even further decrease the amount of requests consider a combination of the previous 2 pointers above.
 
 #### EdgeWorker Setup
 Follow the instructions to:
@@ -32,9 +34,20 @@ Follow the instructions to:
       - **This will be the URL passed with the `-u` option.**
 
 ### API Mode
-This mode uses the Akamai APIs to perform the writes/deletes to EdgeKV. No EdgeWorker needs to be configured, however the write/delete speed is limited to the administrative API. See the [rate limits at techdocs.akamai.com](https://techdocs.akamai.com/edgekv/docs/limits)
+This mode uses the Akamai APIs to perform the writes/deletes to EdgeKV. No EdgeWorker needs to be configured, however the write/delete speed is limited to the administrative API. See the [rate limits at techdocs.akamai.com](https://techdocs.akamai.com/edgekv/docs/limits). 
+
+* You may want to explore this mode if tight security controls such as rate limits are in place for the hostnames under your account.
 
 * To enable the API mode use the `--mode api` or `-m api` option. Examples below.
+
+* To further decrease the amount of requests consider [Bucketing](#bucketing) the items. 
+
+## Bucketing
+Bucketing in key/value databases refers to grouping items together under a common key name (usually a hash). 
+
+For example, if one were to put 3 million URLs in 10K buckets (300 URLs per bucket) then only 10K writes would be required.
+
+This technique is out of the scope of this tool (for now?).
 
 ## Important Variables
 ### Environment Variables 

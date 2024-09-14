@@ -15,7 +15,7 @@ load_dotenv()
 # Get all the necessary env variables
 namespace_id = os.environ.get('AKAMAI_EKV_NAMESPACE_ID')
 group_id = os.environ.get('AKAMAI_EKV_GROUP_ID')
-network = "production"  # Only for the API method. The EW method will always go to prod
+network = "production"  # Only for the API method. The EW method will always go to prod unless the hostname is spoofed to staging
 
 account_key = os.environ.get('AKAMAI_CREDS_ACCOUNT_KEY')
 baseUrl = "https://{host}".format(host=os.environ.get('AKAMAI_CREDS_HOST'))
@@ -51,12 +51,13 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url):
         mode_max_workers = 4
         
     # Upload redirects in parallel for the EdgeWorker. Based on https://techdocs.akamai.com/edgekv/docs/limits:
-    # The number of item writes/deletes supported from all EdgeWorkers is:
+    # The number of item writes/deletes supported from all EdgeWorkers is (hitting a single edge
+    # will may trigger the rate limits sooner):
     # - 200 per second if the item value size is less than 10 KB
     # - 40 per second if the item value size is 10 KB to less than 100 KB
     # - 15 per second if the item value size is 100 KB to less than 250 KB
     # - 1 per second if the item value size is 250 KB to less than 1MB
-    # Limiting the max_workers=40 for the 'edgeworker' mode as it results in ~150 writes/second
+    # Limiting the max_workers=20 for the 'edgeworker' mode as it results in ~75 writes/second for a single edge
     elif mode == 'edgeworker':
         mode_max_workers = 20
         if not upload_url:
@@ -132,6 +133,19 @@ def call_ekv_api(item_id, payload, ekv_operation):
         response = session.delete(url, params=params)
     else:
         response = session.put(url, params=params, json=payload)
+
+    log_response(response, item_id, payload)
+
+    return response
+
+
+def log_response(response, key, payload):
+    # Log the response status code and responses
+    if response.status_code != 200:
+        logging.error(f"Error updating key '{key}' in EdgeKV. Status code: {response.status_code}")
+        logging.error(f"Payload: {payload}")
+    else:
+        logging.info(f"Successfully updated key '{key}' in EdgeKV. Status code: {response.status_code}")
     return response
 
 
@@ -150,12 +164,8 @@ def call_edgeworker(upload_url, key, payload, ekv_operation):
                             
     response = requests.post(upload_url, json=payload, headers=headers, verify=True)
 
-    # Log the response status code
-    if response.status_code != 200:
-        logging.error(f"Error updating key '{key}' in EdgeKV. Status code: {response.status_code}")
-        logging.error(f"Payload: {payload}")
-    else:
-        logging.info(f"Successfully updated key '{key}' in EdgeKV. Status code: {response.status_code}")
+    log_response(response, key, payload)
+
     return response
 
 def main():
