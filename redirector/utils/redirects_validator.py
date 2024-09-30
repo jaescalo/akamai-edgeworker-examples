@@ -15,7 +15,7 @@ def validate_all_redirects(filename, hostname, source_column, target_column):
 
     # Prepend hostname to source and target columns
     df[source_column] = 'https://' + hostname + df[source_column].astype(str)
-    df[target_column] = 'https://' + hostname + df[target_column].astype(str)
+    #df[target_column] = 'https://' + hostname + df[target_column].astype(str)
     
     # Extract URL pairs
     url_pairs = df[[source_column, target_column]].values.tolist()
@@ -35,7 +35,7 @@ def validate_all_redirects(filename, hostname, source_column, target_column):
             print(f"Processed {processed_urls}/{total_urls} URLs", end="\r")
     
     # Create DataFrame for results
-    result_df = pd.DataFrame(results, columns=['source URL', 'target URL', 'Validation Status'])
+    result_df = pd.DataFrame(results, columns=['source URL', 'target URL', 'Validation Status', 'Status Code'])
     
     # Save the DataFrame to a new CSV file
     result_df.to_csv('validator-' + filename, index=False)
@@ -49,12 +49,12 @@ def validate_redirect(url_pair):
         location = response.headers.get('Location', '')
         if response.status_code == 301:
             location = response.headers.get('Location', '')
-            return source_url, target_url, location in target_url
+            return source_url, target_url, location in target_url, response.status_code
         else:
-            return source_url, target_url, False
+            return source_url, target_url, False, response.status_code
     except Exception as e:
         print(f"Error validating URL {source_url}: {str(e)}")
-        return source_url, target_url, False
+        return source_url, target_url, False, "ERROR"
     
 
 def main():
