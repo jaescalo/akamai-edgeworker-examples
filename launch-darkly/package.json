@@ -1,0 +1,40 @@
+{
+  "name": "launchdarkly-demo",
+  "version": "0.0.1",
+  "description": "Launch Darkly Demo",
+  "main": "src/main.js",
+  "config": {
+    "ewid": "12345",
+    "bundleDescription": "Launch Darkly Demo",
+    "network": "staging"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "akamai edgeworkers auth --expiry 720",
+    "bundle": "echo '{\"edgeworker-version\":\"'$npm_package_version'\",\"description\":\"'$npm_package_config_bundleDescription'\"}' > ./src/bundle.json",
+    "build": "npm run bundle && rollup -c && npm run build-ew-tgz",
+    "build-ew-tgz": "cd dist/work && tar czvf ../'ew_'$npm_package_name'_'$npm_package_config_ewid'_'$npm_package_version'.tgz' * && npm run check-size",
+    "upload": "cd dist && akamai edgeworkers upload --bundle 'ew_'$npm_package_name'_'$npm_package_config_ewid'_'$npm_package_version'.tgz' ''$npm_package_config_ewid''",
+    "activate": "akamai edgeworkers activate ''$npm_package_config_ewid'' ''$npm_package_config_network'' ''$npm_package_version''",
+    "deploy": "npm run build && npm run upload && npm run activate",
+    "check-size": "du -sh dist/work/* | sort -h"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-alias": "^5.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.2",
+    "@rollup/plugin-typescript": "^11.1.1",
+    "@types/akamai-edgeworkers": "^1.1.8",
+    "rollup": "^3.22.0",
+    "rollup-plugin-copy": "^3.4.0",
+    "rollup-plugin-copy-assets": "^2.0.3",
+    "rollup-plugin-node-polyfills": "^0.2.1",
+    "tslib": "^2.5.2",
+    "typescript": "5.1.6"
+  },
+  "dependencies": {
+    "@launchdarkly/akamai-server-base-sdk": "^1.0.0"
+  }
+}

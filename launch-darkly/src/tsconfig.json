@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "incremental": true,
+    "strict": true,
+    "module": "nodenext",
+    "outDir": "../dist/work",
+    "target": "ESNext",
+    "lib": ["es2023", "DOM"],
+    "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}
