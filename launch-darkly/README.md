@@ -101,3 +101,7 @@ This command will:
 4. Upload the bundle to your specified EdgeWorker ID
 5. Activate the EW ID
 
+## Best Practices
+
+* Consider enabling caching for response from `sdk/latest-all` to prevent overwhelming the origin infrastructure.
+* Configure [EW Failover for retries](https://techdocs.akamai.com/edgeworkers/docs/site-failover). In case there are resource limit hits due to EW cold starts with the SDK, a retry will no longer be a cold start and the EW execution will succeed. 
