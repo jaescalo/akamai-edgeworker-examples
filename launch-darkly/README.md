@@ -6,6 +6,13 @@ This project implements a custom feature store for Akamai EdgeWorkers using Laun
 
 **Note:** While most customers use Akamai EdgeKV and the Akamai integration, this implementation demonstrates how to use the LaunchDarkly Akamai SDK with your own feature store.
 
+## Feature Management at the Edge
+Dynamically control feature rollouts at the edge without compromising on performance. By leveraging Akamai's EdgeWorkers and integrating a custom feature store with LaunchDarkly's SDK achieve:
+
+* Fast feature flag evaluations at the edge
+* Integration with existing Akamai infrastructure
+* Reduced latency and improved global performance 
+
 ## Use Case
 
 This implementation extracts information from JWT claims to build a context for LaunchDarkly's SDK. The context is then used to validate flags against all available flags at `https://sdk.launchdarkly.com/sdk/latest-all`.
