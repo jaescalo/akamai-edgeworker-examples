@@ -185,7 +185,7 @@ def call_ekv_api(item_id, payload, ekv_operation):
 def log_response(response, key, payload):
     # Log the response status code and responses
     if response.status_code != 200:
-        logging.error(f"Error updating key '{key}' in EdgeKV. Status code: {response.status_code}")
+        logging.error(f"Error updating key '{key}' in EdgeKV {network}. Status code: {response.status_code}")
         logging.error(f"Payload: {payload}")
         logging.error(f"Response: {response.text}")
     else:
