@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 
 import os
+import re
 import csv
+import json
 import time
 import click
 import logging
@@ -15,7 +17,7 @@ load_dotenv()
 # Get all the necessary env variables
 namespace_id = os.environ.get('AKAMAI_EKV_NAMESPACE_ID')
 group_id = os.environ.get('AKAMAI_EKV_GROUP_ID')
-network = "production"  # Only for the API method. The EW method will always go to prod unless the hostname is spoofed to staging
+network = os.environ.get('AKAMAI_NETWORK') # Only for the API method. The EW method will always go to prod unless the hostname is spoofed to staging
 
 account_key = os.environ.get('AKAMAI_CREDS_ACCOUNT_KEY')
 baseUrl = "https://{host}".format(host=os.environ.get('AKAMAI_CREDS_HOST'))
@@ -120,12 +122,53 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url):
         return str(err)
 
 
+# Function to find and properly format JSON strings in a CSV. 
+# For example the CSV may contain a value like "{""/DOC99036"":""/us-en/NEW-URL-DOC99036"",""/DOC99162"":""/us-en/NEW-URL-DOC99162""}"
+# which must be parsed into a proper JSON string like {"/DOC99036":"/us-en/NEW-URL-DOC99036","/DOC99162":"/us-en/NEW-URL-DOC99162"}
+def fix_value_json(row):
+    """Parse and fix the JSON in the 'value' field if needed."""
+    if 'value' in row:
+        try:
+            # Check if value is a string representation of JSON
+            value_str = row['value']
+            
+            # If it looks like a stringified object with key-value pairs in the format "key":"value"
+            if value_str.startswith('{') and value_str.endswith('}'):
+                # Try to parse it as JSON
+                try:
+                    json_obj = json.loads(value_str)
+                    # If successful, the value was already valid JSON
+                    row['value'] = json_obj
+                except json.JSONDecodeError:
+                    # String isn't valid JSON, fix the formatting
+                    # Convert string like '{"/DOC99036":"/us-en/NEW-URL-DOC99036",...}' to proper JSON
+                    pairs = {}
+                    # Remove outer braces
+                    content = value_str.strip('{} ')
+                    
+                    # Split by commas not within quotes
+                    items = re.findall(r'"/[^"]+":"/[^"]+"', content)
+                    
+                    for item in items:
+                        key, value = item.split(':', 1)
+                        # Remove surrounding quotes and add to dictionary
+                        pairs[key.strip('"')] = value.strip('"')
+                    
+                    # Replace with properly formatted JSON object
+                    row['value'] = pairs
+        except Exception as e:
+            print(f"Error processing value field: {e}")
+            
+    return row
+
 def call_ekv_api(item_id, payload, ekv_operation):
     # Check for account key switch for API calls
     if account_key:
         params = { "accountSwitchKey": account_key }
     else:
         params = {}
+
+    payload = fix_value_json(payload)
 
     url = f'{baseUrl}/edgekv/v1/networks/{network}/namespaces/{namespace_id}/groups/{group_id}/items/{item_id}'
 
@@ -144,8 +187,9 @@ def log_response(response, key, payload):
     if response.status_code != 200:
         logging.error(f"Error updating key '{key}' in EdgeKV. Status code: {response.status_code}")
         logging.error(f"Payload: {payload}")
+        logging.error(f"Response: {response.text}")
     else:
-        logging.info(f"Successfully updated key '{key}' in EdgeKV. Status code: {response.status_code}")
+        logging.info(f"Successfully updated key '{key}' in EdgeKV {network}. Status code: {response.status_code}")
     return response
 
 

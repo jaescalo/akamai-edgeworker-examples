@@ -4,14 +4,15 @@ import click
 from concurrent.futures import ThreadPoolExecutor
 
 @click.command()
-@click.option('--filename', '-f', required=True, type=click.Path(exists=True), help='Path to the CSV file')
+@click.option('--input', '-i', required=True, type=click.Path(exists=True), help='Path to the input CSV file')
+@click.option('--output', '-o', required=True, help='Name of the output CSV containing the redirect results')
 @click.option('--hostname', '-h', required=True, help='The hostname for the source and target URLs')
 @click.option('--source-column', '-s', required=True, help='Column name to use as the source URL for the redirect')
 @click.option('--target-column', '-t', required=True, help='Column name to use as the target URL for the redirect')
-def validate_all_redirects(filename, hostname, source_column, target_column):
+def validate_all_redirects(input, output, hostname, source_column, target_column):
     
     # Read the CSV file into a pandas DataFrame
-    df = pd.read_csv(filename)
+    df = pd.read_csv(input)
 
     # Prepend hostname to source and target columns
     df[source_column] = 'https://' + hostname + df[source_column].astype(str)
@@ -38,7 +39,7 @@ def validate_all_redirects(filename, hostname, source_column, target_column):
     result_df = pd.DataFrame(results, columns=['source URL', 'target URL', 'Validation Status', 'Status Code'])
     
     # Save the DataFrame to a new CSV file
-    result_df.to_csv('validator-' + filename, index=False)
+    result_df.to_csv(output, index=False)
 
     return 
 

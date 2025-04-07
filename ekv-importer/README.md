@@ -43,11 +43,9 @@ This mode uses the Akamai APIs to perform the writes/deletes to EdgeKV. No EdgeW
 * To further decrease the amount of requests consider [Bucketing](#bucketing) the items. 
 
 ## Bucketing
-Bucketing in key/value databases refers to grouping items together under a common key name (usually a hash). 
+Bucketing in key/value databases refers to grouping items together under a common key name (usually based on a hash). 
 
 For example, if one were to put 3 million URLs in 10K buckets (300 URLs per bucket) then only 10K writes would be required.
-
-This technique is out of the scope of this tool (for now?).
 
 ## Important Variables
 ### Environment Variables 
@@ -65,8 +63,12 @@ This technique is out of the scope of this tool (for now?).
 
 In a future version of this tool the namespace_id, group_id, network and mode_max_workers may be available as options in the CLI instead. 
 
-## CSV File
-The CSV must contain all the entries to import including the item id. Here's an example:
+## CSV Formatting
+The input or seed data must be in CSV format. With some coding to this script any other formats for the input data can be addressed.
+The CSV must contain all the entries to import including the item id. 
+
+### Flat CSV
+Here's an example of a normal/flat CSV where each value is a string of text:
 ```
 key,code,language,isd
 Afghanistan,AFG,ps|da,93
@@ -75,7 +77,16 @@ Algeria,DZA,ar|fr,213
 Andorra,AND,ca|es|fr,376
 Angola,AGO,pt,244
 ```
-In this particular example the first column is named `key`. And we will use this column as the item ID for EdgeKV.
+In this example the first column is named `key`. And we will use this column as the item ID for EdgeKV.
+
+### JSON CSV
+Here's an example of a CSV where the values are expressed as JSON strings. Note the extra double quotes to account for all the commas inside the JSON string which would otherwise conflict with the CSV formatting. This feature allows for [bucketing](#bucketing).
+```
+key,value
+bucket_0,"{""/DOC99036"":""/us-en/NEW-URL-DOC99036"",""/DOC99162"":""/us-en/NEW-URL-DOC99162""}"
+bucket_1,"{""/DOC99006"":""/us-en/NEW-URL-DOC99006"",""/DOC99094"":""/us-en/NEW-URL-DOC99094""}"
+```
+In this example the first column is named `key`. And we will use this column as the item ID for EdgeKV.
 
 ## Logging
 Execution output is logged to `edgekv_importer.log` which can be used to identify any entries that errored or any missing entries. 
@@ -111,13 +122,13 @@ $ python3 edgekv_importer.py --mode edgeworker --filename example_input.csv -k c
 ### Example #3
 To import all entries using the API mode in CSV and use the `code` column as the item ID for EdgeKV:
 ```
-$ python3 edgekv_importer.py --mode api --filename example_input.csv -k code 
+$ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code 
 ```
 
 ### Example #4
 To delete all entries using the API mode in CSV and use the `key` column as the item ID for EdgeKV:
 ```
-$ python3 edgekv_importer.py --mode api --filename example_input.csv -k code --delete
+$ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code --delete
 ```
 
 ## Future Improvements

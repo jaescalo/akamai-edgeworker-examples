@@ -3,13 +3,14 @@ import hashlib
 import click
 
 @click.command()
-@click.option('--filename', '-f', required=True, type=click.Path(exists=True), help='Path to the CSV file')
+@click.option('--input', '-i', required=True, type=click.Path(exists=True), help='Path to the input CSV file')
+@click.option('--output', '-o', required=True, help='Path to the output/results CSV file')
 @click.option('--source-column', '-s', required=True, help='Column name to use as the source URL for the redirect')
 @click.option('--target-column', '-t', required=True, help='Column name to use as the target URL for the redirect')
-def ekv_data_prep(filename, source_column, target_column):
+def ekv_data_prep(input, output, source_column, target_column):
 
     # Read the CSV file into a pandas DataFrame
-    df = pd.read_csv(filename)
+    df = pd.read_csv(input)
 
     # Extract the source
     df['source'] = df[source_column]
@@ -27,7 +28,7 @@ def ekv_data_prep(filename, source_column, target_column):
     df = df[['key', 'source', 'target']]
 
     # Save the DataFrame to a new CSV file
-    df.to_csv('prep-' + filename, index=False)
+    df.to_csv(output, index=False)
 
 
 # Function to compute SHA256 hash of a URL path

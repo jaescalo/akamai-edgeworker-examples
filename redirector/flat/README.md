@@ -3,9 +3,8 @@
 Managing thousands of redirects or even millions can be successfully performed with the help of EdgeKV (EKV), where all the redirects references can be stored. An EdgeWorker (EW) is then configured to read from EKV and perform the redirects at the edge.
 
 This repository provides the following:
-- The EW in charge of reading from EKV and redirecting
-- A Python script (`utils/redirects_ekv_prep.py`) that prepares the initial redirects data for EKV
-- A Python script (`utils/redirects_validator.py`) that validates the redirects once these are active
+- The EW in `./edgeworker` in charge of reading from EKV and redirecting
+- A Python script (`redirects_ekv_prep.py`) that prepares the initial redirects data for EKV
 
 ## EdgeKV Setup
 EdgeKV must be available in the account and the following should be configured.
@@ -30,13 +29,14 @@ As seen from the initial data the `source` can contain forward slashes (`/`), ho
 In general hashing entries for keys in a database can also be a good practice, especially when dealing with millions of items. Some good reasons can be faster lookups, deduplication, caching and scalability.
 
 #### Redirects Prep. Script
-The script `/utils/redirects_ekv_prep.py` reads the original CSV and adds a new column named `key` which contains the SHA-256 hash based on the provided value for the EKV item name. For the redirects use case that will normally be the source path/URL. 
+The script `redirects_ekv_prep.py` reads the original CSV and adds a new column named `key` which contains the SHA-256 hash based on the provided value for the EKV item name. For the redirects use case that will normally be the source path/URL. 
 
 ```
 Usage: redirects_ekv_prep.py [OPTIONS]
 
 Options:
-  -f, --filename PATH       Path to the CSV file  [required]
+  -i, --input PATH          Path to the input CSV file  [required]
+  -o, --output TEXT         Path to the output/results CSV file  [required]
   -s, --source-column TEXT  Column name to use as the source URL for the
                             redirect  [required]
   -t, --target-column TEXT  Column name to use as the target URL for the
@@ -47,7 +47,7 @@ Options:
 Generate a new CSV using the `source` column as the values for the SHA-256 hash:
 
 ```
-$ python3 redirects_ekv_prep.py -f example_redirects_input.csv -s source -t target
+$ python3 redirects_ekv_prep.py -i example_redirects_input.csv -o example_redirects_output.csv -s source -t target
 ```
 The output CSV will look like this:
 ```
@@ -67,47 +67,11 @@ With this tool the data will be imported to EKV as a JSON string. For example:
 Where `key` is the EKV item name. 
 
 ## EdgeWorker Redirector
-The EW code that executes the redirects at the edge can be found in `src/main.js`. 
+The EW code that executes the redirects at the edge can be found in `./edgeworker/src/main.js`. 
 
 Keep in mind that the `edgekv.js` [helper library](https://techdocs.akamai.com/edgekv/docs/library-helper-methods) and the `edgekv_tokens.js` [access tokens](https://techdocs.akamai.com/edgekv/docs/generate-and-retrieve-edgekv-access-tokens) are required for the EdgeWorker to successfully read from EdgeKV. 
 
-Observe that the EW must perform the same SHA256 than the `utils/redirects_ekv_prep.py` script as the result will be the item to lookup in EKV. Additional logic should be added to the EW code to account for specific matching criteria or parsing the data returned by EKV.
-
+Observe that the EW must perform the same SHA256 than the `redirects_ekv_prep.py` script as the result will be the item to lookup in EKV. Additional logic should be added to the EW code to account for specific matching criteria or parsing the data returned by EKV.
 
 ## Redirects Validator
-The `utils/redirects_validator.py` can validate all the redirects from the original CSV or the CSV that contains the hashes. For simplicity let's use the original CSV:
-```
-source,target
-/DOC99000,/us-en/NEW-URL-DOC99000
-/DOC99001,/us-en/NEW-URL-DOC99001
-/DOC99002,/us-en/NEW-URL-DOC99002
-/DOC99003,/us-en/NEW-URL-DOC99003
-```
-The data needs the hostname where the EdgeWorker Redirector is enabled which can be passed in the command line:
-```
-Usage: redirects_validator.py [OPTIONS]
-
-Options:
-  -f, --filename PATH       Path to the CSV file  [required]
-  -h, --hostname TEXT       The hostname for the source and target URLs
-                            [required]
-  -s, --source-column TEXT  Column name to use as the source URL for the
-                            redirect  [required]
-  -t, --target-column TEXT  Column name to use as the target URL for the
-                            redirect  [required]
-  --help                    Show this message and exit.
-  ```
-
-### Example:
-Following the original CSV file example with the following command we tell the script which hostname to use for the redirect, which is the source path/URL and what to expect in the target (Location header).
-```
-$ python3 redirects_validator.py --filename example_redirects_input.csv -h www.example.com -s source -t target
-```
-The output will be a new CSV with the result for each redirect. For example:
-```
-source URL,target URL,Validation Status
-https://www.example.com/DOC99000,https://www.example.com/us-en/NEW-URL-DOC99000,True
-https://www.example.com/DOC99001,https://www.example.com/us-en/NEW-URL-DOC99001,True
-https://www.example.com/DOC99002,https://www.example.com/us-en/NEW-URL-DOC99002,True
-https://www.example.com/DOC99003,https://www.example.com/us-en/NEW-URL-DOC99003,True
-```
+You can validate all the redirects by using the [Redirects Validator Tool](../utils/redirects_validator/README.md) in this repository.
