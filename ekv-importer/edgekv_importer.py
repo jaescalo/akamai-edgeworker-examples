@@ -7,18 +7,15 @@ import json
 import time
 import click
 import logging
-import requests 
+import requests
+from datetime import datetime
 from akamai.edgegrid import EdgeGridAuth
 from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
 load_dotenv()
 
-# Get all the necessary env variables
-namespace_id = os.environ.get('AKAMAI_EKV_NAMESPACE_ID')
-group_id = os.environ.get('AKAMAI_EKV_GROUP_ID')
-network = os.environ.get('AKAMAI_NETWORK') # Only for the API method. The EW method will always go to prod unless the hostname is spoofed to staging
-
+# Get the API credentials via env variables
 account_key = os.environ.get('AKAMAI_CREDS_ACCOUNT_KEY')
 baseUrl = "https://{host}".format(host=os.environ.get('AKAMAI_CREDS_HOST'))
 session = requests.Session()
@@ -29,12 +26,17 @@ session.auth = EdgeGridAuth(
     )
 
 # Set up logging
-logging.basicConfig(
-    filename='edgekv_importer.log',
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+def setup_logger(name, log_file, level=logging.INFO):
+    """To setup as many loggers as you want"""
+    hdlr = logging.FileHandler('./' + datetime.now().strftime(log_file + '_%H_%M_%d_%m_%Y.log'))
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    hdlr.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(hdlr) 
+
+    return logger
 
 @click.command()
 @click.option('--mode', '-m', required=True, type=click.Choice(['api', 'edgeworker']), help='Write to EKV via the admin API or an EdgeWorker')
@@ -42,7 +44,27 @@ logging.basicConfig(
 @click.option('--key-column', '-k', required=True, help='Column name to use as the key')
 @click.option('--delete', '-d', is_flag=True, help='Delete the items in EdgeKV instead of upserting')
 @click.option('--upload-url', '-u', required=False, help='The URL to upload data to for EdgeWorker mode')
-def ekv_bulk_actions(mode, filename, key_column, delete, upload_url):
+@click.option('--namespace-id', '-n', required=False, help='EKV Namespace')
+@click.option('--group-id', '-g', required=False, help='EKV Group')
+@click.option('--network', '-t', required=False, type=click.Choice(['staging', 'production']), help='EKV Network (only used when mode=api, falls back to AKAMAI_NETWORK env var)')
+def ekv_bulk_actions(mode, filename, key_column, delete, upload_url, namespace_id, group_id, network):
+    global logger 
+    
+    logger = setup_logger ('upload', 'upload')
+
+    # Validate that network is only used with api mode
+    if mode != 'api' and network is not None:
+        raise click.UsageError("The --network option can only be used when --mode=api")
+    
+    # Get values from command line or fall back to environment variables
+    namespace_id = namespace_id or os.environ.get('AKAMAI_EKV_NAMESPACE_ID')
+    group_id = group_id or os.environ.get('AKAMAI_EKV_GROUP_ID')
+    
+    # Only get network from env var if mode is api
+    if mode == 'api':
+        network = network or os.environ.get('AKAMAI_NETWORK')
+        print(network)
+
     """Read the CSV file and upsert the data to Akamai EdgeKV in parallel"""
 
     # Upload redirects in parallel for the admin API. Based on https://techdocs.akamai.com/edgekv/docs/limits:
@@ -91,12 +113,12 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url):
                 if mode == 'api':
                     for row in dict_reader:
                         key = row[key_column]
-                        tasks.append(executor.submit(call_ekv_api, key, row, ekv_operation))
+                        tasks.append(executor.submit(call_ekv_api, key, row, ekv_operation, namespace_id, group_id, network))
                 
                 elif mode == "edgeworker":
                     for row in dict_reader:
                         key = row[key_column]
-                        tasks.append(executor.submit(call_edgeworker, upload_url, key, row, ekv_operation))
+                        tasks.append(executor.submit(call_edgeworker, upload_url, key, row, ekv_operation, namespace_id, group_id))
                             
                 # Wait for all the tasks to complete
                 for task in tasks:
@@ -118,6 +140,7 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url):
             return response
     
     except Exception as err:
+        print(err)
         # If an error occurs, return None for the response and the error message
         return str(err)
 
@@ -161,7 +184,7 @@ def fix_value_json(row):
             
     return row
 
-def call_ekv_api(item_id, payload, ekv_operation):
+def call_ekv_api(item_id, payload, ekv_operation, namespace_id, group_id, network):
     # Check for account key switch for API calls
     if account_key:
         params = { "accountSwitchKey": account_key }
@@ -177,23 +200,23 @@ def call_ekv_api(item_id, payload, ekv_operation):
     else:
         response = session.put(url, params=params, json=payload)
 
-    log_response(response, item_id, payload)
+    log_response(response, item_id, payload, ekv_operation, network)
 
     return response
 
 
-def log_response(response, key, payload):
+def log_response(response, key, payload, ekv_operation, network=""):
     # Log the response status code and responses
     if response.status_code != 200:
-        logging.error(f"Error updating key '{key}' in EdgeKV {network}. Status code: {response.status_code}")
-        logging.error(f"Payload: {payload}")
-        logging.error(f"Response: {response.text}")
+        logger.error(f"Error in '{ekv_operation}' for key '{key}' in EdgeKV {network}. Status code: {response.status_code}, Error: {response.text}")
+        logger.error(f"Payload: {payload}")
+
     else:
-        logging.info(f"Successfully updated key '{key}' in EdgeKV {network}. Status code: {response.status_code}")
+        logger.info(f"Successful '{ekv_operation}' for key '{key}' in EdgeKV {network}. Status code: {response.status_code}")
     return response
 
 
-def call_edgeworker(upload_url, key, payload, ekv_operation):
+def call_edgeworker(upload_url, key, payload, ekv_operation, namespace_id, group_id):
     # The following headers tell the EW which EKV to perform the operations to.
     # Additional EW debugging headers can be added:
     # "Pragma": "akamai-x-ew-debug, akamai-x-ew-debug-subs, akamai-x-ew-debug-rp"
@@ -206,9 +229,10 @@ def call_edgeworker(upload_url, key, payload, ekv_operation):
         "Ekv-operation": ekv_operation
     }
                             
+    payload = fix_value_json(payload)
     response = requests.post(upload_url, json=payload, headers=headers, verify=True)
 
-    log_response(response, key, payload)
+    log_response(response, key, payload, ekv_operation)
 
     return response
 

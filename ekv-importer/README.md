@@ -49,19 +49,19 @@ For example, if one were to put 3 million URLs in 10K buckets (300 URLs per buck
 
 ## Important Variables
 ### Environment Variables 
-- `namespace_id`: EdgeKV namespace id
-- `group_id`: EdgeKV group id
-- `account_key`: OPTIONAL. Akamai account ID to be used only if your API credentials allow for multi-account switching
 - `baseUrl`: uses the Akamai `host` credential to build the API 
 - `client_token`: Akamai `client_token` credential
 - `client_secret`: Akamai `client_secret` credential
 - `access_token`: Akamai `access_token` credential
+- `account_key`: OPTIONAL. Akamai account ID to be used only if your API credentials allow for multi-account switching
+
+The following are optional environment variables as the values can be passed as CLI arguments:
+- `namespace_id`: EdgeKV namespace id
+- `group_id`: EdgeKV group id
+- `network`: Akamai activation network (staging | production). This variable only works with the `api` method. If you need to use the `edgeworker` method in the staging network you will need to spoof to staging the hostname used to upload to EdgeKV.
 
 ### Inline Variables
-- `network`: Akamai activation network (staging | production)
-- `mode_max_workers`: controls how many concurrent API calls are performed. Useful for keeping requests under the rate limits.
-
-In a future version of this tool the namespace_id, group_id, network and mode_max_workers may be available as options in the CLI instead. 
+- `mode_max_workers`: controls how many concurrent API calls are performed. Useful for keeping requests under the rate limits. This is not available as CLI arguments because the default values should work under any scenario.
 
 ## CSV Formatting
 The input or seed data must be in CSV format. With some coding to this script any other formats for the input data can be addressed.
@@ -89,48 +89,49 @@ bucket_1,"{""/DOC99006"":""/us-en/NEW-URL-DOC99006"",""/DOC99094"":""/us-en/NEW-
 In this example the first column is named `key`. And we will use this column as the item ID for EdgeKV.
 
 ## Logging
-Execution output is logged to `edgekv_importer.log` which can be used to identify any entries that errored or any missing entries. 
+Execution output is logged to `*_timestamp.log` which can be used to identify any entries that errored or any missing entries. 
 
 ## Usage
 ```
 Usage: edgekv_importer.py [OPTIONS]
 
-  Read the CSV file and upsert the data to Akamai EdgeKV in parallel
-
 Options:
-  -m, --mode [api|edgeworker]  Write to EKV via the admin API or an EdgeWorker
-                               [required]
-  -f, --filename PATH          Path to the CSV file  [required]
-  -k, --key-column TEXT        Column name to use as the key  [required]
-  -d, --delete                 Delete the items in EdgeKV instead of upserting
-  -u, --upload-url TEXT        The URL to upload data to for EdgeWorker mode
-  --help                Show this message and exit.
+  -m, --mode [api|edgeworker]     Write to EKV via the admin API or an
+                                  EdgeWorker  [required]
+  -f, --filename PATH             Path to the CSV file  [required]
+  -k, --key-column TEXT           Column name to use as the key  [required]
+  -d, --delete                    Delete the items in EdgeKV instead of
+                                  upserting
+  -u, --upload-url TEXT           The URL to upload data to for EdgeWorker
+                                  mode
+  -n, --namespace-id TEXT         EKV Namespace
+  -g, --group-id TEXT             EKV Group
+  -t, --network [staging|production]
+                                  EKV Network (only used when mode=api, falls
+                                  back to AKAMAI_NETWORK env var)
+  --help                          Show this message and exit.
 ```
 
 ### Example #1
-To import all entries using the Edgeworker mode in CSV and use the `code` column as the item ID for EdgeKV:
+To import all entries using the Edgeworker mode in CSV and use the `code` column as the item ID for EdgeKV. Environment variables are used for the namespace and group.
 ```
 $ python3 edgekv_importer.py --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path"
 ```
 
 ### Example #2
-To delete all entries using the Edgeworker mode in CSV and use the `key` column as the item ID for EdgeKV:
+To delete all entries using the Edgeworker mode in CSV and use the `key` column as the item ID for EdgeKV. The namespace and group ID are passed as arguments in the CLI instead of environment variables. 
 ```
-$ python3 edgekv_importer.py --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path" --delete
+$ python3 edgekv_importer.py --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path" --namespace-id my_namespace --group-id my_group --delete
 ```
 
 ### Example #3
-To import all entries using the API mode in CSV and use the `code` column as the item ID for EdgeKV:
+To import all entries using the API mode in CSV and use the `code` column as the item ID for EdgeK. Environment variables are used for the namespace, group and activation network.
 ```
 $ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code 
 ```
 
 ### Example #4
-To delete all entries using the API mode in CSV and use the `key` column as the item ID for EdgeKV:
+To delete all entries using the API mode in CSV and use the `key` column as the item ID for EdgeKV. The namespace, group and activation network are passed as arguments in the CLI instead of environment variables. 
 ```
-$ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code --delete
+$ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code --namespace-id my_namespace --group-id my_group --network staging --delete
 ```
-
-## Future Improvements
-1. Add logging for the API mode
-2. Add namespace_id, group_id, network and mode_max_workers as options in the CLI instead. 
