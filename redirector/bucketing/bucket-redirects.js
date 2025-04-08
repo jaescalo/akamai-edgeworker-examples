@@ -108,8 +108,10 @@ function bucketRedirects(inputFile, outputFile, numBuckets) {
         // Display some stats
         const bucketSizes = Object.values(buckets).map((b) => b.length);
         const nonEmptyBuckets = bucketSizes.filter((s) => s > 0);
+        console.log(nonEmptyBuckets);
         const maxSize = Math.max(...nonEmptyBuckets, 0);
-        const minSize = Math.min(...nonEmptyBuckets, 0);
+        const minSize = Math.min(...nonEmptyBuckets);
+        console.log(minSize);
         const avgSize = results.length / (nonEmptyBuckets.length || 1); // Avoid division by zero
 
         console.log(`Statistics:`);
