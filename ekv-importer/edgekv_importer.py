@@ -27,8 +27,13 @@ session.auth = EdgeGridAuth(
 
 # Set up logging
 def setup_logger(name, log_file, level=logging.INFO):
+
+    # Get logs path from env var, otherwise default to ./
+    log_path = os.environ.get('AKAMAI_EW_LOG_PATH') or './'
+
     """To setup as many loggers as you want"""
-    hdlr = logging.FileHandler('./' + datetime.now().strftime(log_file + '_%H_%M_%d_%m_%Y.log'))
+    hdlr = logging.FileHandler(log_path + datetime.now().strftime('ew_' + log_file + '_%H_%M_%d_%m_%Y.log'))
+
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     hdlr.setFormatter(formatter)
 
@@ -38,7 +43,13 @@ def setup_logger(name, log_file, level=logging.INFO):
 
     return logger
 
-@click.command()
+
+@click.group()
+def cli():
+    """EdgeKV bulk and single upload utility."""
+    pass
+
+@cli.command('bulk')
 @click.option('--mode', '-m', required=True, type=click.Choice(['api', 'edgeworker']), help='Write to EKV via the admin API or an EdgeWorker')
 @click.option('--filename', '-f', required=True, type=click.Path(exists=True), help='Path to the CSV file')
 @click.option('--key-column', '-k', required=True, help='Column name to use as the key')
@@ -47,7 +58,16 @@ def setup_logger(name, log_file, level=logging.INFO):
 @click.option('--namespace-id', '-n', required=False, help='EKV Namespace')
 @click.option('--group-id', '-g', required=False, help='EKV Group')
 @click.option('--network', '-t', required=False, type=click.Choice(['staging', 'production']), help='EKV Network (only used when mode=api, falls back to AKAMAI_NETWORK env var)')
-def ekv_bulk_actions(mode, filename, key_column, delete, upload_url, namespace_id, group_id, network):
+def ekv_bulk_action(mode, filename, key_column, delete, upload_url, namespace_id, group_id, network):
+
+    """Process bulk operations from a CSV file."""
+    # Bulk operation implementation here
+    click.echo(f"Running bulk operation with {filename}")
+    
+    return perform_ekv_bulk_action(mode, filename, key_column, delete, upload_url, namespace_id, group_id, network)
+
+
+def perform_ekv_bulk_action(mode, filename, key_column, delete, upload_url, namespace_id, group_id, network):
     global logger 
     
     logger = setup_logger ('upload', 'upload')
@@ -64,6 +84,11 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url, namespace_i
     if mode == 'api':
         network = network or os.environ.get('AKAMAI_NETWORK')
         print(network)
+
+    if delete:
+        ekv_operation = "delete"
+    else:
+        ekv_operation = "upsert"
 
     """Read the CSV file and upsert the data to Akamai EdgeKV in parallel"""
 
@@ -86,11 +111,6 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url, namespace_i
         mode_max_workers = 20
         if not upload_url:
             raise click.UsageError("--upload-url/-u is required when using the 'edgeworker' mode")
-
-    if delete:
-        ekv_operation = "delete"
-    else:
-        ekv_operation = "upsert"
                           
     try:
         # Get the number of rows in the CSV file
@@ -143,6 +163,56 @@ def ekv_bulk_actions(mode, filename, key_column, delete, upload_url, namespace_i
         print(err)
         # If an error occurs, return None for the response and the error message
         return str(err)
+
+
+@cli.command('item')
+@click.option('--mode', '-m', required=True, type=click.Choice(['api', 'edgeworker']), help='Write to EKV via the admin API or an EdgeWorker')
+@click.option('--key', '-s', required=True, help='Key for the EdgeKV item')
+@click.option('--value', '-t', required=True, help='Value for the EdgeKV item')
+@click.option('--delete', '-d', is_flag=True, help='Delete the item in EdgeKV instead of upserting')
+@click.option('--upload-url', '-u', required=False, help='The URL to upload data to for EdgeWorker mode')
+@click.option('--namespace-id', '-n', required=False, help='EKV Namespace')
+@click.option('--group-id', '-g', required=False, help='EKV Group')
+@click.option('--network', required=False, type=click.Choice(['staging', 'production']), help='EKV Network (only used when mode=api, falls back to AKAMAI_NETWORK env var)')
+def ekv_item_action(mode, key, value, delete, upload_url, namespace_id, group_id, network):
+    """Process an item key-value operation."""
+    # Single operation implementation here
+    click.echo(f"Running item operation: {key} -> {value}")
+
+    return perform_ekv_item_action(mode, key, value, delete, upload_url, namespace_id, group_id, network)
+
+
+def perform_ekv_item_action(mode, key, value, delete, upload_url, namespace_id, group_id, network):
+    """The actual implementation logic, separate from Click"""
+
+    global logger 
+
+    logger = setup_logger ('upload', 'upload')
+
+    # Validate that network is only used with api mode
+    if mode != 'api' and network is not None:
+        raise click.UsageError("The --network option can only be used when --mode=api")
+    
+    # Get values from command line or fall back to environment variables
+    namespace_id = namespace_id or os.environ.get('AKAMAI_EKV_NAMESPACE_ID')
+    group_id = group_id or os.environ.get('AKAMAI_EKV_GROUP_ID')
+
+    # Only get network from env var if mode is api
+    if mode == 'api':
+        network = network or os.environ.get('AKAMAI_NETWORK')
+
+    if delete:
+        ekv_operation = "delete"
+    else:
+        ekv_operation = "upsert"
+
+    if mode == 'api':
+        response = call_ekv_api(key, value, ekv_operation, namespace_id, group_id, network)
+    
+    elif mode == "edgeworker":
+        response = call_edgeworker(upload_url, key, value, ekv_operation, namespace_id, group_id)
+        
+    return response
 
 
 # Function to find and properly format JSON strings in a CSV. 
@@ -236,9 +306,5 @@ def call_edgeworker(upload_url, key, payload, ekv_operation, namespace_id, group
 
     return response
 
-def main():
-    """Entry point for the script"""
-    ekv_bulk_actions()
-
 if __name__ == "__main__":
-    main()
+    cli()

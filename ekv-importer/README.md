@@ -1,7 +1,7 @@
-# Akamai EdgeKV Python Importer
+# Akamai EdgeKV Importer
 
-This tool aids the initial EdgeKV seeding. The script reads from a CSV file, converts each row to a JSON string which then is used as the value in EdgeKV. As for the item id for EdgeKV it can be any of the column names, just pass it as part of the arguments for the script.
-The script also allow for EdgeKV delete operations.
+This tool aids the initial EdgeKV seeding. The script can read items from a CSV file, converts each row to a JSON string which then is used as the value in EdgeKV. As for the item id for EdgeKV it can be any of the column names, just pass it as part of the arguments for the script.
+The script also allow for EdgeKV delete operations and single item upsert/delete.
 
 ## Modes of Operation
 There are 2 modes of operation for writing/deleting to EdgeKV: `edgeworker` or `api`.
@@ -46,6 +46,11 @@ This mode uses the Akamai APIs to perform the writes/deletes to EdgeKV. No EdgeW
 Bucketing in key/value databases refers to grouping items together under a common key name (usually based on a hash). 
 
 For example, if one were to put 3 million URLs in 10K buckets (300 URLs per bucket) then only 10K writes would be required.
+
+## Bulk Operations or Single Item
+There are 2 main subcommands:
+- `bulk`: reads items from a CSV file to delete/write to EdgeKV
+- `item`: you can provide the item key/value in the script arguments. You can write or delete an item this way.
 
 ## Important Variables
 ### Environment Variables 
@@ -93,45 +98,38 @@ Execution output is logged to `*_timestamp.log` which can be used to identify an
 
 ## Usage
 ```
-Usage: edgekv_importer.py [OPTIONS]
+Usage: edgekv_importer.py [OPTIONS] COMMAND [ARGS]...
+
+  EdgeKV bulk and single upload utility.
 
 Options:
-  -m, --mode [api|edgeworker]     Write to EKV via the admin API or an
-                                  EdgeWorker  [required]
-  -f, --filename PATH             Path to the CSV file  [required]
-  -k, --key-column TEXT           Column name to use as the key  [required]
-  -d, --delete                    Delete the items in EdgeKV instead of
-                                  upserting
-  -u, --upload-url TEXT           The URL to upload data to for EdgeWorker
-                                  mode
-  -n, --namespace-id TEXT         EKV Namespace
-  -g, --group-id TEXT             EKV Group
-  -t, --network [staging|production]
-                                  EKV Network (only used when mode=api, falls
-                                  back to AKAMAI_NETWORK env var)
-  --help                          Show this message and exit.
+  --help  Show this message and exit.
+
+Commands:
+  bulk  Process bulk operations from a CSV file.
+  item  Process an item key-value operation.
 ```
 
 ### Example #1
-To import all entries using the Edgeworker mode in CSV and use the `code` column as the item ID for EdgeKV. Environment variables are used for the namespace and group.
+To import all the items from a CSV using the Edgeworker mode and use the `code` column as the item ID for EdgeKV. Environment variables are used for the namespace and group which should be made available to the environment prior to running the command.
 ```
-$ python3 edgekv_importer.py --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path"
+$ python3 edgekv_importer.py bulk --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path"
 ```
 
 ### Example #2
-To delete all entries using the Edgeworker mode in CSV and use the `key` column as the item ID for EdgeKV. The namespace and group ID are passed as arguments in the CLI instead of environment variables. 
+To delete all the items from a CSV using the Edgeworker mode and use the `key` column as the item ID for EdgeKV. The namespace and group ID are passed as arguments in the CLI instead of environment variables. 
 ```
-$ python3 edgekv_importer.py --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path" --namespace-id my_namespace --group-id my_group --delete
+$ python3 edgekv_importer.py bulk --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path" --namespace-id my_namespace --group-id my_group --delete
 ```
 
 ### Example #3
-To import all entries using the API mode in CSV and use the `code` column as the item ID for EdgeK. Environment variables are used for the namespace, group and activation network.
+Upsert a single item using the API mode. Environment variables are used for the namespace and group which should be made available to the environment prior to running the command.
 ```
-$ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code 
+$ python3 edgekv_importer.py item --mode api --key my_key --value my_value -u "https://some.akamaized.host/path" 
 ```
 
 ### Example #4
-To delete all entries using the API mode in CSV and use the `key` column as the item ID for EdgeKV. The namespace, group and activation network are passed as arguments in the CLI instead of environment variables. 
+Delete a single item using the API mode. The namespace, group and activation network are passed as arguments in the CLI instead of environment variables. 
 ```
-$ python3 edgekv_importer.py --mode api --filename example_bucketed.csv -k code --namespace-id my_namespace --group-id my_group --network staging --delete
+$ python3 edgekv_importer.py item --mode api --key my_key --value my_value --namespace-id my_namespace --group-id my_group --network staging --delete
 ```
