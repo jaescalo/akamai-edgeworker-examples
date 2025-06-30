@@ -117,9 +117,9 @@ $ python3 edgekv_importer.py bulk --mode edgeworker --filename example_input.csv
 ```
 
 ### Example #2
-To delete all the items from a CSV using the Edgeworker mode and use the `key` column as the item ID for EdgeKV. The namespace and group ID are passed as arguments in the CLI instead of environment variables. 
+To delete all the items from a CSV using the API mode and use the `key` column as the item ID for EdgeKV. The namespace and group ID are passed as arguments in the CLI instead of environment variables. 
 ```
-$ python3 edgekv_importer.py bulk --mode edgeworker --filename example_input.csv -k code -u "https://some.akamaized.host/path" --namespace-id my_namespace --group-id my_group --delete
+$ python3 edgekv_importer.py bulk --mode api --filename example_input.csv -k code --namespace-id my_namespace --group-id my_group --delete
 ```
 
 ### Example #3

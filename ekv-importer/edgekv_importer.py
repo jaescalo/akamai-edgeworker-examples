@@ -82,6 +82,10 @@ def perform_ekv_bulk_action(mode, filename, key_column, delete, upload_url, name
     
     # Only get network from env var if mode is api
     if mode == 'api':
+        # Validate that upload-url is only used with edgeworker mode
+        if mode == 'api' and upload_url is not None:
+            raise click.UsageError("The --upload-url/-u option can only be used when --mode=edgeworker")
+        
         network = network or os.environ.get('AKAMAI_NETWORK')
         print(network)
 
@@ -192,6 +196,10 @@ def perform_ekv_item_action(mode, key, value, delete, upload_url, namespace_id, 
     # Validate that network is only used with api mode
     if mode != 'api' and network is not None:
         raise click.UsageError("The --network option can only be used when --mode=api")
+    
+    # Validate that upload-url is only used with edgeworker mode
+    if mode == 'api' and upload_url is not None:
+        raise click.UsageError("The --upload-url/-u option can only be used when --mode=edgeworker")
     
     # Get values from command line or fall back to environment variables
     namespace_id = namespace_id or os.environ.get('AKAMAI_EKV_NAMESPACE_ID')

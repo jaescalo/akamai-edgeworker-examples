@@ -1,1 +1,1 @@
-{"edgeworker-version":"0.4.3","description":"EdgeWorker/EdgeKV Redirector","config":{"logging":{"level":"debug","schema":"v1","ds2id":73521}}}
+{"edgeworker-version":"9.0.0","description":"EdgeWorker/EdgeKV Redirector","config":{"logging":{"level":"debug","schema":"v1","ds2id":73521}}}
